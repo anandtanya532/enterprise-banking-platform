@@ -1,24 +1,20 @@
-resource "azurerm_virtual_network" "main" {
- name = var.vnet_name
- location = azurerm_resource_group.main.location
- resource_group_name = azurerm_resource_group.main.name
+module "network" {
 
- address_space = var.address_space
-}
+  source = "./modules/network"
 
-resource "azurerm_subnet" "aks" {
-    name = "snet-aks"
-  resource_group_name = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
+  vnet_name = var.vnet_name
 
-  address_prefixes = var.aks_subnet_prefix
-}
+  location = module.resource_group.location
 
-resource "azurerm_subnet" "appgw" {
-    name = "snet-appgw"
-  resource_group_name = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
+  resource_group_name = module.resource_group.resource_group_name
 
-  address_prefixes = var.appgw_subnet_prefix
+  address_space = var.address_space
 
+  aks_subnet_name = var.aks_subnet_name
+
+  aks_subnet_prefix = var.aks_subnet_prefix
+
+  appgw_subnet_name = var.appgw_subnet_name
+
+  appgw_subnet_prefix = var.appgw_subnet_prefix
 }

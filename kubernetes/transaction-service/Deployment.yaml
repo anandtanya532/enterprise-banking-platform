@@ -20,8 +20,8 @@ spec:
     spec:
       containers:
       - name: transaction-service
-
-        image: nginx
+        image: enterprisebankacr.azurecr.io/transaction-service:v1
+        imagePullPolicy: IfNotPresent
 
         ports:
-        - containerPort: 80
+        - containerPort: 5003

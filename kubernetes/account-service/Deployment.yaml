@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: account-service
+  namespace: banking
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: account-service
+
+  template:
+    metadata:
+      labels:
+        app: account-service
+
+    spec:
+      containers:
+      - name: account-service
+        image: enterprisebankacr.azurecr.io/account-service:v1
+        imagePullPolicy: Never
+
+        ports:
+        - containerPort: 5001
+
+        envFrom:
+        - secretRef:
+            name: postgres-secret

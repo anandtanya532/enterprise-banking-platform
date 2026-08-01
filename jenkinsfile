@@ -1,0 +1,53 @@
+pipeline {
+
+    agent any
+
+    environment {
+
+        REGISTRY = "enterprisebankacr.azurecr.io"
+
+        IMAGE = "frontend"
+
+        TAG = "v${BUILD_NUMBER}"
+    }
+
+    stages {
+
+        stage('Checkout') {
+
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+
+            steps {
+                sh 'docker build -t frontend:${TAG} application/frontend'
+            }
+        }
+
+        stage('Tag') {
+
+            steps {
+                sh 'docker tag frontend:${TAG} ${REGISTRY}/frontend:${TAG}'
+            }
+        }
+
+        stage('Push') {
+
+            steps {
+                sh 'docker push ${REGISTRY}/frontend:${TAG}'
+            }
+        }
+
+        stage('Deploy') {
+
+            steps {
+                sh 'kubectl rollout restart deployment frontend -n banking'
+            }
+        }
+
+    }
+
+}
