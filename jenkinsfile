@@ -1,53 +1,83 @@
 pipeline {
-
     agent any
 
     environment {
-
         REGISTRY = "enterprisebankacr.azurecr.io"
-
-        IMAGE = "frontend"
-
-        TAG = "v${BUILD_NUMBER}"
+        IMAGE_TAG = "build-${BUILD_NUMBER}"
     }
 
     stages {
 
         stage('Checkout') {
-
             steps {
                 checkout scm
             }
         }
 
-        stage('Build') {
-
+        stage('Build Frontend') {
             steps {
-                sh 'docker build -t frontend:${TAG} application/frontend'
+                sh '''
+                docker build -t frontend:${IMAGE_TAG} application/frontend
+                docker tag frontend:${IMAGE_TAG} ${REGISTRY}/frontend:${IMAGE_TAG}
+                '''
             }
         }
 
-        stage('Tag') {
-
+        stage('Build Account Service') {
             steps {
-                sh 'docker tag frontend:${TAG} ${REGISTRY}/frontend:${TAG}'
+                sh '''
+                docker build -t account-service:${IMAGE_TAG} application/account-service
+                docker tag account-service:${IMAGE_TAG} ${REGISTRY}/account-service:${IMAGE_TAG}
+                '''
             }
         }
 
-        stage('Push') {
-
+        stage('Build Payment Service') {
             steps {
-                sh 'docker push ${REGISTRY}/frontend:${TAG}'
+                sh '''
+                docker build -t payment-service:${IMAGE_TAG} application/payment-service
+                docker tag payment-service:${IMAGE_TAG} ${REGISTRY}/payment-service:${IMAGE_TAG}
+                '''
             }
         }
 
-        stage('Deploy') {
-
+        stage('Build Transaction Service') {
             steps {
-                sh 'kubectl rollout restart deployment frontend -n banking'
+                sh '''
+                docker build -t transaction-service:${IMAGE_TAG} application/transaction-service
+                docker tag transaction-service:${IMAGE_TAG} ${REGISTRY}/transaction-service:${IMAGE_TAG}
+                '''
             }
         }
 
+        stage('Push Images') {
+            steps {
+                sh '''
+                docker push ${REGISTRY}/frontend:${IMAGE_TAG}
+                docker push ${REGISTRY}/account-service:${IMAGE_TAG}
+                docker push ${REGISTRY}/payment-service:${IMAGE_TAG}
+                docker push ${REGISTRY}/transaction-service:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Deploy to AKS') {
+            steps {
+                sh '''
+                kubectl rollout restart deployment/frontend -n banking
+                kubectl rollout restart deployment/account-service -n banking
+                kubectl rollout restart deployment/payment-service -n banking
+                kubectl rollout restart deployment/transaction-service -n banking
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                kubectl get pods -n banking
+                '''
+            }
+        }
     }
-
 }
