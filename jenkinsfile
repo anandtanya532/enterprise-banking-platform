@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "enterprisebankacr.azurecr.io"
+        REGISTRY = 'enterprisebankacr.azurecr.io'
         IMAGE_TAG = "build-${BUILD_NUMBER}"
     }
 
@@ -14,49 +14,78 @@ pipeline {
             }
         }
 
-        stage('Build Frontend') {
-            steps {
-                sh '''
-                docker build -t frontend:${IMAGE_TAG} application/frontend
-                docker tag frontend:${IMAGE_TAG} ${REGISTRY}/frontend:${IMAGE_TAG}
-                '''
+        stage('Build Images') {
+            parallel {
+
+                stage('Frontend') {
+                    steps {
+                        sh '''
+                            docker build \
+                              -t ${REGISTRY}/frontend:${IMAGE_TAG} \
+                              application/frontend
+                        '''
+                    }
+                }
+
+                stage('Account Service') {
+                    steps {
+                        sh '''
+                            docker build \
+                              -t ${REGISTRY}/account-service:${IMAGE_TAG} \
+                              application/account-service
+                        '''
+                    }
+                }
+
+                stage('Payment Service') {
+                    steps {
+                        sh '''
+                            docker build \
+                              -t ${REGISTRY}/payment-service:${IMAGE_TAG} \
+                              application/payment-service
+                        '''
+                    }
+                }
+
+                stage('Transaction Service') {
+                    steps {
+                        sh '''
+                            docker build \
+                              -t ${REGISTRY}/transaction-service:${IMAGE_TAG} \
+                              application/transaction-service
+                        '''
+                    }
+                }
             }
         }
 
-        stage('Build Account Service') {
+        stage('Login to ACR') {
             steps {
-                sh '''
-                docker build -t account-service:${IMAGE_TAG} application/account-service
-                docker tag account-service:${IMAGE_TAG} ${REGISTRY}/account-service:${IMAGE_TAG}
-                '''
-            }
-        }
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'azure-sp',
+                        usernameVariable: 'ACR_USERNAME',
+                        passwordVariable: 'ACR_PASSWORD'
+                    )
+                ]) {
 
-        stage('Build Payment Service') {
-            steps {
-                sh '''
-                docker build -t payment-service:${IMAGE_TAG} application/payment-service
-                docker tag payment-service:${IMAGE_TAG} ${REGISTRY}/payment-service:${IMAGE_TAG}
-                '''
-            }
-        }
-
-        stage('Build Transaction Service') {
-            steps {
-                sh '''
-                docker build -t transaction-service:${IMAGE_TAG} application/transaction-service
-                docker tag transaction-service:${IMAGE_TAG} ${REGISTRY}/transaction-service:${IMAGE_TAG}
-                '''
+                    sh '''
+                        echo "$ACR_PASSWORD" | docker login \
+                          "$REGISTRY" \
+                          --username "$ACR_USERNAME" \
+                          --password-stdin
+                    '''
+                }
             }
         }
 
         stage('Push Images') {
             steps {
                 sh '''
-                docker push ${REGISTRY}/frontend:${IMAGE_TAG}
-                docker push ${REGISTRY}/account-service:${IMAGE_TAG}
-                docker push ${REGISTRY}/payment-service:${IMAGE_TAG}
-                docker push ${REGISTRY}/transaction-service:${IMAGE_TAG}
+                    docker push ${REGISTRY}/frontend:${IMAGE_TAG}
+                    docker push ${REGISTRY}/account-service:${IMAGE_TAG}
+                    docker push ${REGISTRY}/payment-service:${IMAGE_TAG}
+                    docker push ${REGISTRY}/transaction-service:${IMAGE_TAG}
                 '''
             }
         }
@@ -64,10 +93,17 @@ pipeline {
         stage('Deploy to AKS') {
             steps {
                 sh '''
-                kubectl rollout restart deployment/frontend -n banking
-                kubectl rollout restart deployment/account-service -n banking
-                kubectl rollout restart deployment/payment-service -n banking
-                kubectl rollout restart deployment/transaction-service -n banking
+                    kubectl -n banking set image deployment/frontend \
+                      frontend=${REGISTRY}/frontend:${IMAGE_TAG}
+
+                    kubectl -n banking set image deployment/account-service \
+                      account-service=${REGISTRY}/account-service:${IMAGE_TAG}
+
+                    kubectl -n banking set image deployment/payment-service \
+                      payment-service=${REGISTRY}/payment-service:${IMAGE_TAG}
+
+                    kubectl -n banking set image deployment/transaction-service \
+                      transaction-service=${REGISTRY}/transaction-service:${IMAGE_TAG}
                 '''
             }
         }
@@ -75,7 +111,18 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                kubectl get pods -n banking
+                    kubectl rollout status deployment/frontend -n banking
+                    kubectl rollout status deployment/account-service -n banking
+                    kubectl rollout status deployment/payment-service -n banking
+                    kubectl rollout status deployment/transaction-service -n banking
+                '''
+            }
+        }
+
+        stage('Show Pods') {
+            steps {
+                sh '''
+                    kubectl get pods -n banking -o wide
                 '''
             }
         }
