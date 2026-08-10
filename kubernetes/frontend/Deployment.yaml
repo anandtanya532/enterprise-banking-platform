@@ -19,13 +19,9 @@ spec:
 
     spec:
       containers:
-      - name: frontend
-        image: enterprisebankacr.azurecr.io/frontend:v1
-        imagePullPolicy: Never
+        - name: frontend
+          image: enterprisebankacr.azurecr.io/frontend:v1
+          imagePullPolicy: Always
 
-        ports:
-        - containerPort: 5000
-
-        envFrom:
-        - configMapRef:
-            name: banking-config
+          ports:
+            - containerPort: 5000

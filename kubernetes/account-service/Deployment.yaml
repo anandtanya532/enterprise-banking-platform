@@ -21,7 +21,7 @@ spec:
       containers:
       - name: account-service
         image: enterprisebankacr.azurecr.io/account-service:v1
-        imagePullPolicy: Never
+        imagePullPolicy: Always
 
         ports:
         - containerPort: 5001
