@@ -3,7 +3,7 @@ import requests
 
 app = Flask(__name__)
 
-ACCOUNT_SERVICE = "http://localhost:5001/account"
+ACCOUNT_SERVICE = "http://account-service:5001/account"
 
 @app.route("/")
 def home():
